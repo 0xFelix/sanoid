@@ -25,8 +25,8 @@ GetOptions(\%args, "no-command-checks", "monitor-version", "compress=s", "dumpsn
                    "source-bwlimit=s", "target-bwlimit=s", "sshkey=s", "sshport=i", "sshcipher|c=s", "sshoption|o=s@",
                    "debug", "quiet", "no-stream", "no-sync-snap", "no-resume", "exclude=s@", "skip-parent", "identifier=s",
                    "no-clone-handling", "no-privilege-elevation", "force-delete", "no-clone-rollback", "no-rollback",
-                   "create-bookmark", "pv-options=s" => \$pvoptions, "keep-sync-snap", "preserve-recordsize",
-                   "mbuffer-size=s" => \$mbuffer_size) or pod2usage(2);
+                   "create-bookmark", "ignore-failed-create-bookmark", "pv-options=s" => \$pvoptions, "keep-sync-snap",
+                   "preserve-recordsize", "mbuffer-size=s" => \$mbuffer_size) or pod2usage(2);
 
 my %compressargs = %{compressargset($args{'compress'} || 'default')}; # Can't be done with GetOptions arg, as default still needs to be set
 
@@ -864,9 +864,11 @@ sub syncdataset {
 				}
 				if ($debug) { print "DEBUG: $bookmarkcmd\n"; }
 				system($bookmarkcmd) == 0 or do {
-					warn "CRITICAL ERROR: $bookmarkcmd failed: $?";
-					if ($exitcode < 2) { $exitcode = 2; }
-					return 0;
+					if (!defined $args{'ignore-failed-create-bookmark'}) {
+						warn "CRITICAL ERROR: $bookmarkcmd failed: $?";
+						if ($exitcode < 2) { $exitcode = 2; }
+						return 0;
+					}
 				}
 			};
 		}
