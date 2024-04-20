@@ -592,7 +592,7 @@ sub syncdataset {
 			my %bookmarks = getbookmarks($sourcehost,$sourcefs,$sourceisroot);
 
 			# check for matching guid of source bookmark and target snapshot (oldest first)
-			foreach my $snap ( sort { sortsnapshots(\%snaps, $b, $a) } keys %{ $snaps{'target'} }) {
+			foreach my $snap ( sort { sortsnapshots(\%snaps, $b, $a, 'target') } keys %{ $snaps{'target'} }) {
 				my $guid = $snaps{'target'}{$snap}{'guid'};
 
 				if (defined $bookmarks{$guid}) {
@@ -682,7 +682,7 @@ sub syncdataset {
 					# if intermediate snapshots are needed we need to find the next oldest snapshot,
 					# do an replication to it and replicate as always from oldest to newest
 					# because bookmark sends doesn't support intermediates directly
-					foreach my $snap ( sort { sortsnapshots(\%snaps, $a, $b) } keys %{ $snaps{'source'} }) {
+					foreach my $snap ( sort { sortsnapshots(\%snaps, $a, $b, 'source') } keys %{ $snaps{'source'} }) {
 						my $comparisonkey = 'creation';
 						if (defined $snaps{'source'}{$snap}{'createtxg'} && defined $bookmark{'createtxg'}) {
 							$comparisonkey = 'createtxg';
@@ -865,7 +865,7 @@ sub syncdataset {
 		# those that exist on the source. Remaining are the snapshots
 		# that are only on the target. Then sort to remove the oldest
 		# snapshots first.
-		my @to_delete = sort { sortsnapshots(\%snaps, $a, $b) } grep {!exists $snaps{'source'}{$_}} keys %{ $snaps{'target'} };
+		my @to_delete = sort { sortsnapshots(\%snaps, $a, $b, 'source') } grep {!exists $snaps{'source'}{$_}} keys %{ $snaps{'target'} };
 		while (@to_delete) {
 			# Create batch of snapshots to remove
 			my $snaps = join ',', splice(@to_delete, 0, 50);
@@ -1486,16 +1486,16 @@ sub readablebytes {
 }
 
 sub sortsnapshots {
-	my ($snaps, $left, $right) = @_;
-	if (defined $snaps->{'source'}{$left}{'createtxg'} && defined $snaps->{'source'}{$right}{'createtxg'}) {
-		return $snaps->{'source'}{$left}{'createtxg'} <=> $snaps->{'source'}{$right}{'createtxg'};
+	my ($snaps, $left, $right, $idx) = @_;
+	if (defined $snaps->{$idx}{$left}{'createtxg'} && defined $snaps->{$idx}{$right}{'createtxg'}) {
+		return $snaps->{$idx}{$left}{'createtxg'} <=> $snaps->{$idx}{$right}{'createtxg'};
 	}
-	return $snaps->{'source'}{$left}{'creation'} <=> $snaps->{'source'}{$right}{'creation'};
+	return $snaps->{$idx}{$left}{'creation'} <=> $snaps->{$idx}{$right}{'creation'};
 }
 
 sub getoldestsnapshot {
 	my $snaps = shift;
-	foreach my $snap (sort { sortsnapshots($snaps, $a, $b) } keys %{ $snaps{'source'} }) {
+	foreach my $snap (sort { sortsnapshots($snaps, $a, $b, 'source') } keys %{ $snaps{'source'} }) {
 		# return on first snap found - it's the oldest
 		return $snap;
 	}
@@ -1509,7 +1509,7 @@ sub getoldestsnapshot {
 
 sub getnewestsnapshot {
 	my $snaps = shift;
-	foreach my $snap (sort { sortsnapshots($snaps, $b, $a) } keys %{ $snaps{'source'} }) {
+	foreach my $snap (sort { sortsnapshots($snaps, $b, $a, 'source') } keys %{ $snaps{'source'} }) {
 		# return on first snap found - it's the newest
 		writelog('INFO', "NEWEST SNAPSHOT: $snap");
 		return $snap;
@@ -1688,7 +1688,7 @@ sub pruneoldsyncsnaps {
 
 sub getmatchingsnapshot {
 	my ($sourcefs, $targetfs, $snaps) = @_;
-	foreach my $snap ( sort { sortsnapshots($snaps, $b, $a) } keys %{ $snaps{'source'} }) {
+	foreach my $snap ( sort { sortsnapshots($snaps, $b, $a, 'source') } keys %{ $snaps{'source'} }) {
 		if (defined $snaps{'target'}{$snap}) {
 			if ($snaps{'source'}{$snap}{'guid'} == $snaps{'target'}{$snap}{'guid'}) {
 				return $snap;
